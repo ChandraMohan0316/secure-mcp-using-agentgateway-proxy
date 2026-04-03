@@ -1,3 +1,24 @@
 apiVersion: v1
-entries: {}
-generated: "2026-01-01T00:00:00Z"
+entries:
+  secure-mcp:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-04-03T09:07:55.049585255Z"
+    dependencies:
+    - condition: agentgateway-crds.enabled
+      name: agentgateway-crds
+      repository: oci://cr.agentgateway.dev/charts
+      version: v1.0.1
+    - condition: agentgateway.enabled
+      name: agentgateway
+      repository: oci://cr.agentgateway.dev/charts
+      version: v1.0.1
+    description: Helm chart for securing MCP servers with agentgateway proxy and Keycloak
+      OAuth
+    digest: 15e0c50c85b6e1767e58aa56d674dff8b0f524539a92f1ce6e442643e280c739
+    name: secure-mcp
+    type: application
+    urls:
+    - https://github.com/ChandraMohan0316/secure-mcp-using-agentgateway-proxy/releases/download/secure-mcp-0.2.0/secure-mcp-0.2.0.tgz
+    version: 0.2.0
+generated: "2026-04-03T09:07:55.049594238Z"
