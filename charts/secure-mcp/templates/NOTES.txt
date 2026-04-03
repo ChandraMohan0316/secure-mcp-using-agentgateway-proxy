@@ -1,0 +1,23 @@
+=== Secure MCP Stack Deployed ===
+
+Gateway endpoint:
+  kubectl -n {{ .Values.gateway.namespace }} get svc agentgateway-proxy \
+    -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+
+Keycloak endpoint:
+  kubectl -n {{ .Values.keycloak.namespace }} get svc keycloak \
+    -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+
+MCP Servers:
+{{- range .Values.mcpServers }}
+  - {{ .name }} ({{ .type }}) → /{{ .name }}
+{{- end }}
+
+Test users:
+{{- range .Values.keycloak.realm.users }}
+  - {{ .username }} / {{ .password }} (group: {{ .group }})
+{{- end }}
+
+Run validation:
+  bash scripts/validate.sh
+  bash scripts/validate.sh --verbose

@@ -1,0 +1,24 @@
+{{- if ne .Values.keycloak.namespace "default" }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.keycloak.namespace }}
+  labels:
+    {{- include "secure-mcp.labels" . | nindent 4 }}
+{{- end }}
+{{- $created := dict }}
+{{- range .Values.mcpServers }}
+{{- if and (eq .type "deployment") (ne (.namespace | default "default") "default") }}
+{{- $ns := .namespace }}
+{{- if not (hasKey $created $ns) }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    {{- include "secure-mcp.labels" $ | nindent 4 }}
+{{- $_ := set $created $ns true }}
+{{- end }}
+{{- end }}
+{{- end }}  

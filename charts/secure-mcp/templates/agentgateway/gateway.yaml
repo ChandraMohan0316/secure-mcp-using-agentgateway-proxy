@@ -1,0 +1,16 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: agentgateway-proxy
+  namespace: {{ .Values.gateway.namespace }}
+  labels:
+    {{- include "secure-mcp.labels" . | nindent 4 }}
+spec:
+  gatewayClassName: agentgateway
+  infrastructure:
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-scheme: {{ .Values.gateway.aws.loadBalancerScheme }}
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: {{ .Values.gateway.port }}

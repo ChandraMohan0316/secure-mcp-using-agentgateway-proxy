@@ -1,0 +1,18 @@
+{{- range .Values.mcpServers }}
+{{- if and (eq .type "deployment") .configFiles }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .name }}-config
+  namespace: {{ .namespace | default "default" }}
+  labels:
+    app: {{ .name }}
+    {{- include "secure-mcp.labels" $ | nindent 4 }}
+data:
+  {{- range .configFiles }}
+  {{ .fileName }}: |
+{{ .content | indent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}

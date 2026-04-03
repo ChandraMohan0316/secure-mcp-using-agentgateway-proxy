@@ -1,0 +1,70 @@
+{{- range .Values.mcpServers }}
+{{- if eq .type "deployment" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .name }}
+  namespace: {{ .namespace | default "default" }}
+  labels:
+    app: {{ .name }}
+    {{- include "secure-mcp.labels" $ | nindent 4 }}
+spec:
+  replicas: {{ .replicas | default 1 }}
+  selector:
+    matchLabels:
+      app: {{ .name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .name }}
+    spec:
+      containers:
+        - name: {{ .name }}
+          image: "{{ .image.repository }}:{{ .image.tag }}"
+          ports:
+            - containerPort: {{ .port }}
+          {{- if .env }}
+          env:
+            {{- toYaml .env | nindent 12 }}
+          {{- end }}
+          {{- if .envSecrets }}
+          envFrom:
+            - secretRef:
+                name: {{ .name }}-env-secrets
+          {{- end }}
+          {{- if .configFiles }}
+          volumeMounts:
+            {{- range .configFiles }}
+            - name: config
+              mountPath: {{ .mountPath }}
+              subPath: {{ .fileName }}
+              readOnly: true
+            {{- end }}
+          {{- end }}
+          {{- if .healthCheck }}
+          livenessProbe:
+            httpGet:
+              path: {{ .healthCheck.path }}
+              port: {{ .port }}
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: {{ .healthCheck.path }}
+              port: {{ .port }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          {{- end }}
+          {{- if .resources }}
+          resources:
+            {{- toYaml .resources | nindent 12 }}
+          {{- end }}
+      {{- if .configFiles }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .name }}-config
+      {{- end }}
+{{- end }}
+{{- end }}

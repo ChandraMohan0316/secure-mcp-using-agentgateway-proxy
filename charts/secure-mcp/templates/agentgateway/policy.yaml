@@ -1,0 +1,57 @@
+{{- range .Values.mcpServers }}
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: {{ .name }}-auth-policy
+  namespace: {{ $.Values.gateway.namespace }}
+  labels:
+    app: {{ .name }}
+    {{- include "secure-mcp.labels" $ | nindent 4 }}
+spec:
+  targetRefs:
+  - group: agentgateway.dev
+    kind: AgentgatewayBackend
+    name: {{ .name }}-backend
+  backend:
+    {{- if .tls }}
+    tls:
+      alpnProtocols:
+      - h2
+      - http/1.1
+    {{- end }}
+    mcp:
+      authentication:
+        issuer: {{ include "secure-mcp.keycloak.issuer" $ | quote }}
+        jwks:
+          backendRef:
+            name: keycloak
+            kind: Service
+            namespace: {{ $.Values.keycloak.namespace }}
+            port: 8080
+          jwksPath: {{ include "secure-mcp.keycloak.jwksPath" $ | quote }}
+          cacheDuration: 5m
+        mode: Strict
+        provider: Keycloak
+        resourceMetadata:
+          scopesSupported:
+          - email
+          - profile
+          bearerMethodsSupported:
+          - header
+          - body
+          - query
+      authorization:
+        action: Allow
+        policy:
+          matchExpressions:
+          {{- if and .authorization .authorization.rules }}
+          {{- range .authorization.rules }}
+          - {{ .expression | quote }}
+          {{- end }}
+          {{- else }}
+          {{- range $.Values.authorization.defaultRules }}
+          - {{ .expression | quote }}
+          {{- end }}
+          {{- end }}
+{{- end }}

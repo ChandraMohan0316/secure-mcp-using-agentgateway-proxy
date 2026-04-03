@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm-config
+  namespace: {{ .Values.keycloak.namespace }}
+  labels:
+    app: keycloak
+    {{- include "secure-mcp.labels" . | nindent 4 }}
+data:
+  mcp-realm.json: |
+    {
+      "realm": {{ .Values.keycloak.realm.name | quote }},
+      "enabled": true,
+      "sslRequired": "none",
+      "loginWithEmailAllowed": true,
+      "duplicateEmailsAllowed": false,
+      "components": {},
+      "requiredActions": [
+        {
+          "alias": "VERIFY_PROFILE",
+          "name": "Verify Profile",
+          "providerId": "VERIFY_PROFILE",
+          "enabled": false,
+          "defaultAction": false,
+          "priority": 90,
+          "config": {}
+        }
+      ],
+      "clients": [
+        {
+          "clientId": "mcp-agentgateway",
+          "enabled": true,
+          "publicClient": false,
+          "serviceAccountsEnabled": true,
+          "directAccessGrantsEnabled": true,
+          "standardFlowEnabled": true,
+          "redirectUris": ["*"],
+          "webOrigins": ["*"]
+        }
+      ],
+      "users": [
+        {{- range $i, $user := .Values.keycloak.realm.users }}
+        {{- if $i }},{{ end }}
+        {
+          "username": {{ $user.username | quote }},
+          "enabled": true,
+          "emailVerified": true,
+          "email": {{ $user.email | quote }},
+          "attributes": { "group": [{{ $user.group | quote }}] },
+          "credentials": [{ "type": "password", "value": {{ $user.password | quote }}, "temporary": false }]
+        }
+        {{- end }}
+      ]
+    }

@@ -1,0 +1,225 @@
+# -- Subchart toggles (set to false if CRDs/controller already installed)
+agentgateway-crds:
+  enabled: true
+agentgateway:
+  enabled: true
+
+# -- Keycloak OAuth 2.0 Identity Provider
+keycloak:
+  image:
+    repository: quay.io/keycloak/keycloak
+    tag: "26.1.3"
+  adminPassword: admin
+  replicas: 1
+  namespace: keycloak
+  # hostname: ""  # External LB hostname for OAuth browser flow (e.g. k8s-keycloak-xxx.elb.amazonaws.com)
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  realm:
+    name: mcp
+    users:
+      - username: user1
+        password: password
+        email: user1@example.com
+        group: engineers
+      - username: user2
+        password: password
+        email: user2@example.com
+        group: viewers
+
+# -- Gateway
+gateway:
+  namespace: agentgateway-system
+  port: 8080
+  aws:
+    loadBalancerScheme: internet-facing
+
+# -- Global authorization defaults (applied to all servers unless overridden)
+authorization:
+  defaultRules:
+    - expression: 'true'
+
+# -- MCP Servers
+# Each entry generates: AgentgatewayBackend, AgentgatewayPolicy, HTTPRoute
+# type=deployment also generates: Deployment, Service, ConfigMap, Secret
+# type=remote proxies to an external MCP endpoint
+mcpServers:
+  # - name: aap-mcp-svr
+  #   type: deployment
+  #   namespace: default
+  #   image:
+  #     repository: 853973692277.dkr.ecr.us-east-1.amazonaws.com/aap-mcp-server
+  #     tag: latest
+  #   replicas: 2
+  #   port: 3000
+  #   path: /mcp
+  #   sessionRouting: Stateless       # Stateless (default) or Header (SSE)
+  #   backendToken: ""                # bearer token injected to backend — pass via --set
+  #   env:                            # non-sensitive env vars
+  #     - name: AUTH_ENABLED
+  #       value: "false"
+  #     - name: AUTH_MODE
+  #       value: "legacy"
+  #     - name: MCP_PORT
+  #       value: "3000"
+  #   envSecrets:                     # sensitive env vars — stored in K8s Secret
+  #     BASE_URL: ""                  # pass via --set mcpServers[0].envSecrets.BASE_URL=...
+  #     BEARER_TOKEN_OAUTH2_AUTHENTICATION: ""  # pass via --set
+  #   configFiles:
+  #     - mountPath: /app/aap-mcp.yaml
+  #       fileName: aap-mcp.yaml
+  #       content: |
+  #         base_url: "https://aap.example.com"
+  #         allow_write_operations: true
+  #         auth_enabled: false
+  #         services:
+  #           - name: controller
+  #             local_path: data/controller-schema.json
+  #           - name: galaxy
+  #             local_path: data/galaxy-openapi.json
+  #           - name: gateway
+  #             local_path: data/gateway-schema.json
+  #           - name: eda
+  #             local_path: data/eda-openapi.json
+  #             enabled: false
+  #         toolsets:
+  #           job_management:
+  #             - controller.job_templates_launch_retrieve
+  #             - controller.job_templates_launch_create
+  #             - controller.workflow_job_templates_launch_create
+  #             - controller.jobs_retrieve
+  #             - controller.workflow_jobs_retrieve
+  #             - controller.jobs_stdout_retrieve
+  #             - controller.jobs_job_events_list
+  #             - controller.jobs_cancel_create
+  #             - controller.workflow_jobs_cancel_create
+  #             - controller.jobs_relaunch_retrieve
+  #             - controller.jobs_relaunch_create
+  #             - controller.workflow_jobs_relaunch_create
+  #             - controller.jobs_list
+  #             - eda.activation_instances_list
+  #             - eda.activation_instances_logs_list
+  #             - controller.analytics_retrieve
+  #             - controller.metrics_retrieve
+  #             - controller.projects_list
+  #             - controller.job_templates_list
+  #             - controller.workflow_job_templates_list
+  #             - controller.job_templates_retrieve
+  #             - controller.workflow_job_templates_retrieve
+  #             - controller.jobs_job_host_summaries_list
+  #             - controller.workflow_jobs_list
+  #             - controller.workflow_jobs_workflow_nodes_list
+  #           inventory_management:
+  #             - controller.inventories_list
+  #             - controller.inventory_sources_update_create
+  #             - controller.hosts_list
+  #             - controller.hosts_retrieve
+  #             - controller.hosts_variable_data_retrieve
+  #             - controller.groups_list
+  #             - controller.groups_create
+  #           system_monitoring:
+  #             - controller.instance_groups_list
+  #             - controller.instance_groups_create
+  #             - controller.instance_groups_retrieve
+  #             - controller.mesh_visualizer_retrieve
+  #             - controller.instances_create
+  #             - gateway.activitystream_list
+  #             - gateway.activitystream_retrieve
+  #             - gateway.authenticators_list
+  #             - controller.activity_stream_list
+  #             - controller.activity_stream_retrieve
+  #             - controller.instances_retrieve
+  #             - gateway.status_retrieve
+  #             - gateway.feature_flags_state_retrieve
+  #           user_management:
+  #             - gateway.teams_list
+  #             - gateway.teams_retrieve
+  #             - gateway.teams_create
+  #             - gateway.teams_update
+  #             - gateway.teams_destroy
+  #             - gateway.teams_users_list
+  #             - gateway.me_list
+  #             - gateway.role_definitions_list
+  #             - gateway.role_team_assignments_list
+  #             - gateway.role_user_assignments_list
+  #             - gateway.role_user_assignments_create
+  #             - gateway.role_user_assignments_destroy
+  #             - gateway.organizations_list
+  #             - gateway.organizations_retrieve
+  #             - gateway.organizations_create
+  #             - gateway.organizations_update
+  #             - gateway.organizations_destroy
+  #             - gateway.activitystream_list
+  #             - controller.activity_stream_list
+  #             - gateway.users_list
+  #             - gateway.users_retrieve
+  #             - gateway.users_create
+  #             - gateway.users_update
+  #             - gateway.users_destroy
+  #             - gateway.users_teams_list
+  #             - gateway.authenticators_list
+  #             - gateway.authenticators_retrieve
+  #             - gateway.authenticators_create
+  #             - gateway.authenticators_update
+  #             - gateway.authenticators_destroy
+  #             - gateway.authenticator_maps_list
+  #             - gateway.authenticator_maps_create
+  #           security_compliance:
+  #             - controller.credentials_list
+  #             - controller.credentials_create
+  #             - controller.credentials_retrieve
+  #             - controller.credentials_test_create
+  #             - controller.jobs_list
+  #             - gateway.activitystream_list
+  #             - controller.activity_stream_list
+  #             - controller.credential_types_list
+  #             - controller.credential_types_create
+  #             - controller.credential_types_retrieve
+  #             - controller.credential_types_update
+  #             - controller.credential_types_destroy
+  #           platform_configuration:
+  #             - controller.settings_list
+  #             - controller.settings_retrieve
+  #             - controller.settings_partial_update
+  #             - gateway.settings_list
+  #             - gateway.settings_getter
+  #             - gateway.settings_update
+  #             - controller.config_retrieve
+  #             - controller.config_create
+  #             - controller.notification_templates_list
+  #             - controller.notification_templates_create
+  #             - controller.notification_templates_retrieve
+  #             - controller.notification_templates_update
+  #             - controller.notification_templates_destroy
+  #             - controller.execution_environments_list
+  #             - controller.execution_environments_create
+  #             - controller.execution_environments_retrieve
+  #             - controller.execution_environments_update
+  #             - controller.execution_environments_destroy
+  #   healthCheck:
+  #     path: /api/v1/health
+  #   resources:
+  #     requests:
+  #       cpu: 100m
+  #       memory: 256Mi
+  #     limits:
+  #       cpu: 500m
+  #       memory: 512Mi
+    # authorization:              # omitted — uses authorization.defaultRules
+    #   rules:
+    #     - expression: 'custom rule'
+
+  # --- Remote type: protect GitHub Copilot MCP endpoint ---
+  - name: github-mcp
+    type: remote
+    host: api.githubcopilot.com
+    port: 443
+    path: /mcp/
+    tls: true
+    sessionRouting: Stateless
+    backendToken: ""  # pass via --set 'mcpServers[0].backendToken=<your-github-pat>'

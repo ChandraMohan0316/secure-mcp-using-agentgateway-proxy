@@ -1,0 +1,30 @@
+{{- range .Values.mcpServers }}
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: {{ .name }}-backend
+  namespace: {{ $.Values.gateway.namespace }}
+  labels:
+    app: {{ .name }}
+    {{- include "secure-mcp.labels" $ | nindent 4 }}
+spec:
+  mcp:
+    sessionRouting: {{ .sessionRouting | default "Stateless" }}
+    targets:
+    - name: {{ .name }}-target
+      static:
+        {{- if eq .type "deployment" }}
+        host: {{ .name }}.{{ .namespace | default "default" }}.svc.cluster.local
+        {{- else }}
+        host: {{ .host }}
+        {{- end }}
+        port: {{ .port }}
+        path: {{ .path | default "/mcp" }}
+        {{- if .backendToken }}
+        policies:
+          auth:
+            secretRef:
+              name: {{ .name }}-backend-token
+        {{- end }}
+{{- end }}

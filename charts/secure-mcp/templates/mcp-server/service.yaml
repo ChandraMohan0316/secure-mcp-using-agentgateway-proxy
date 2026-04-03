@@ -1,0 +1,22 @@
+{{- range .Values.mcpServers }}
+{{- if eq .type "deployment" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name }}
+  namespace: {{ .namespace | default "default" }}
+  labels:
+    app: {{ .name }}
+    {{- include "secure-mcp.labels" $ | nindent 4 }}
+spec:
+  selector:
+    app: {{ .name }}
+  ports:
+    - name: http
+      port: {{ .port }}
+      targetPort: {{ .port }}
+      appProtocol: agentgateway.dev/mcp
+  type: ClusterIP
+{{- end }}
+{{- end }}

@@ -1,0 +1,86 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-realm-config-{{ .Release.Revision }}
+  namespace: {{ .Values.keycloak.namespace }}
+  labels:
+    app: keycloak-realm-config
+    {{- include "secure-mcp.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 5
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        app: keycloak-realm-config
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: realm-config
+        image: "{{ .Values.keycloak.image.repository }}:{{ .Values.keycloak.image.tag }}"
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          KC_SERVER="http://keycloak.{{ .Values.keycloak.namespace }}.svc.cluster.local:8080"
+          REALM="{{ .Values.keycloak.realm.name }}"
+
+          echo "Waiting for Keycloak to be ready..."
+          for i in $(seq 1 60); do
+            if /opt/keycloak/bin/kcadm.sh config credentials \
+              --server "$KC_SERVER" --realm master \
+              --user admin --password {{ .Values.keycloak.adminPassword | quote }} 2>/dev/null; then
+              echo "Keycloak is ready."
+              break
+            fi
+            echo "Attempt $i: Keycloak not ready, retrying in 5s..."
+            sleep 5
+          done
+
+          echo "Removing restrictive DCR policies from realm '$REALM'..."
+          for POLICY_NAME in "Trusted Hosts" "Allowed Client Scopes"; do
+            COMPONENT_ID=$(/opt/keycloak/bin/kcadm.sh get "realms/$REALM/components" \
+              -q "type=org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy" \
+              -q "name=$POLICY_NAME" \
+              -q "subType=anonymous" \
+              --fields id --format csv --noquotes 2>/dev/null | head -1)
+
+            if [ -n "$COMPONENT_ID" ]; then
+              /opt/keycloak/bin/kcadm.sh delete "realms/$REALM/components/$COMPONENT_ID"
+              echo "Deleted '$POLICY_NAME' policy (id: $COMPONENT_ID)"
+            else
+              echo "'$POLICY_NAME' policy not found (already removed)."
+            fi
+          done
+
+          echo "Adding 'group' protocol mapper to 'profile' client scope..."
+          SCOPE_ID=$(/opt/keycloak/bin/kcadm.sh get "realms/$REALM/client-scopes" \
+            -q "name=profile" --fields id --format csv --noquotes 2>/dev/null | head -1)
+
+          if [ -n "$SCOPE_ID" ]; then
+            EXISTING=$(/opt/keycloak/bin/kcadm.sh get "realms/$REALM/client-scopes/$SCOPE_ID/protocol-mappers/models" \
+              --fields name --format csv --noquotes 2>/dev/null | grep -c "^group$" || true)
+            if [ "$EXISTING" -eq 0 ]; then
+              /opt/keycloak/bin/kcadm.sh create "realms/$REALM/client-scopes/$SCOPE_ID/protocol-mappers/models" \
+                -s name=group \
+                -s protocol=openid-connect \
+                -s protocolMapper=oidc-usermodel-attribute-mapper \
+                -s 'config."claim.name"=group' \
+                -s 'config."user.attribute"=group' \
+                -s 'config."id.token.claim"=true' \
+                -s 'config."access.token.claim"=true' \
+                -s 'config."jsonType.label"=String'
+              echo "Added 'group' protocol mapper."
+            else
+              echo "'group' protocol mapper already exists."
+            fi
+          else
+            echo "WARNING: 'profile' client scope not found."
+          fi
+
+          echo "Realm configuration complete."
