@@ -38,6 +38,23 @@ jobs:
             fi
           done
 
+      - name: Ensure gh-pages branch exists
+        run: |
+          if ! git ls-remote --heads origin gh-pages | grep -q gh-pages; then
+            echo "Creating gh-pages branch with empty Helm index..."
+            git checkout --orphan gh-pages
+            git rm -rf .
+            cat > index.yaml <<'EOF'
+          apiVersion: v1
+          entries: {}
+          generated: "2026-01-01T00:00:00Z"
+          EOF
+            git add index.yaml
+            git commit -m "Initialize Helm chart repo index"
+            git push origin gh-pages
+            git checkout main
+          fi
+
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.6.0
         with:
