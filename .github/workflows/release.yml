@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pages: write
 
     steps:
       - name: Checkout
@@ -36,6 +37,19 @@ jobs:
               helm dependency update "$chart"
             fi
           done
+
+      - name: Create initial gh-pages branch if needed
+        run: |
+          if ! git ls-remote --heads origin gh-pages | grep -q gh-pages; then
+            echo "Creating gh-pages branch..."
+            git checkout --orphan gh-pages
+            git rm -rf .
+            echo "# Helm Chart Repository" > index.yaml
+            git add index.yaml
+            git commit -m "Initialize gh-pages branch"
+            git push origin gh-pages
+            git checkout main
+          fi
 
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.6.0
